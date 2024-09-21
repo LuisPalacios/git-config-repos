@@ -1,0 +1,106 @@
+// Configuration for $HOME/.config/git-config-repos.json
+//
+// Ejemplo de fchero de configuración para git-config-repos.sh
+//
+// ELIMINA TODOS LOS COMENTARIOS ANTES DE USAR
+//
+{
+    // SECCIÓN GLOBAL
+    //
+    // global.folder es el directorio a partir del cual se trabaja
+    //
+    // El resto son parámetros para $HOME/.gitconfig
+    //
+    // git config --global credential.helper <global.credential.helper>
+    // git config --global credential.credentialStore <global.credential.credentialStore>
+    //                     windows: wincredman, osx: keychain, linux: gpg
+    //
+    "global": {
+        "folder": "/Users/luis/00.git",
+        "credential": {
+            "helper": "manager",
+            "credentialStore": "keychain"
+        }
+    },
+
+    // SECCIÓN CUENTAS
+    //
+    // Configuración de cada una de tus cuentas en los proveedores Git y
+    // dentro de cada una de ellas la configuración de los repositorios
+    //
+    "accounts": {
+        // Cuenta con GitHub personal
+        "GitHub-LuisPalacios": {
+            "url": "https://github.com/LuisPalacios",
+            "clone_url": "https://LuisPalacios@github.com/LuisPalacios",
+            "credential_url": "https://github.com",
+            "username": "LuisPalacios",
+            "folder": "02.github-luispa",
+            "provider": "github",
+            "useHttpPath": "false",
+            "repos": {
+                "LuisPalacios.github.io": {
+                    "name": "Luis Palacios",
+                    "email": "luis.palacios.derqui@gmail.com"
+                },
+                "git-repo-eol-analyzer": {
+                    "name": "Luis Palacios",
+                    "email": "luis.palacios.derqui@gmail.com"
+                }
+            }
+        },
+        // Ejemplo de cuenta de empresa en GitHub, con repositorios de la empresa Renueva
+        "GitHub-LuispaRenueva": {
+            "url": "https://github.com/Renueva",
+            "clone_url": "https://LuispaRenueva@github.com/Renueva",
+            "credential_url": "https://github.com",
+            "username": "LuispaRenueva",
+            "folder": "03.github-renueva",
+            "provider": "github",
+            "useHttpPath": "false",
+            "repos": {
+                "renueva.consulting": {
+                    "name": "LuispaRenueva",
+                    "email": "luispa@renueva.com"
+                },
+                "renueva.consulting.lib": {
+                    "name": "LuispaRenueva",
+                    "email": "luispa@renueva.com"
+                }
+            }
+        },
+        // Cuenta que puedes tener con otro usuario personal en GitHub
+        "GitHub-OtroUsuario": {
+            "url": "https://github.com/OtroUsuario",
+            "clone_url": "https://OtroUsuario@github.com/OtroUsuario",
+            "credential_url": "https://github.com",
+            "username": "OtroUsuario",
+            "folder": "04.github-otrousuario",
+            "provider": "github",
+            "useHttpPath": "false",
+            "repos": {
+                "mi-super-repo": {
+                    "name": "Otro Usuario",
+                    "email": "otrousuario@gmail.com"
+                }
+            }
+        },
+        // Cuenta con Gitea server en casa.
+        "Gitea-Luis": {
+            "url": "https://git.home.org/palas",
+            "clone_url": "https://luis@git.home.org/palas",
+            "credential_url": "https://git.home.org",
+            "username": "luis",
+            "folder": "01.gitea-luis",
+            "subfolder": "palas",
+            "provider": "generic",
+            "useHttpPath": "false",
+            "repos": {
+                "cumples": {
+                    "name": "Luis Palacios",
+                    "email": "luis.home@gmail.com"
+                }
+            }
+        }
+    }
+}
