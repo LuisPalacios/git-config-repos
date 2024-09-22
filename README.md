@@ -1,18 +1,19 @@
 # Configurador de repositorios Git
 
-El script `git-config-repos.sh` simplifica la configuración de Git para de una estación de trabajo de un desarrollador que utiliza HTTPS y Git Credential Manager como método de gestión de sus credenciales.
+Este script simplifica la configuración de Git multicuenta si utilizas HTTPS y Git Credential Manager como método de gestión de credenciales.
 
-Lee y analiza el archivo `git-config-repos.json` de donde obtiene parámetros globales de GIT y parámetros específicos para varias cuentas y repositorios.
+Lee y analiza el archivo `git-config-repos.json`, de donde obtiene parámetros globales de GIT y parámetros específicos para varias cuentas y repositorios.
 
-Para cada uno de los repositorios ofrece:
+Para cada uno de los repositorios:
 
-- Si no existe el repo lo clona bajo el directorio de la cuenta y lo configura
-- Si existe el repo, revisa la configuración y arregla lo que no esté correcto
+- Verifica los credenciales y los guarda en el almacén local
+- Clona el repo bajo el directorio de la cuenta y lo configura
+- Si ya existía el repo, revisa la configuración y arregla lo que no esté correcto
 
 El fichero JSON tiene dos claves principales: "global" y "accounts".
 
-- La clave "global" indica cuál es el directorio raíz GIT donde el usuario despliega toda la estructura de directorios y algunos parámetros que servirán para configurar el fichero de git (`$HOME/.gitconfig`)
-- La clave "accounts" incluye a su vez claves para diferentes cuentas en distintos proveedores Git y dentro de dichas cuentas incluye a su vez repositorios.
+- La clave "global" indica cuál es el directorio raíz GIT donde el usuario despliega toda la estructura de directorios y algunos parámetros que servirán para configurar el fichero global (`$HOME/.gitconfig`)
+- La clave "accounts" incluye claves para diferentes cuentas en distintos proveedores Git y dentro de dichas cuentas incluye a su vez repositorios.
 
-Este script se apoya en Git Credential Manager. Está probado solo en MacOS.
+Este script se apoya en Git Credential Manager. Está probado en Linux, MacOS y Windows
 
