@@ -15,3 +15,4 @@ El fichero JSON tiene dos claves principales: "global" y "accounts".
 - La clave "accounts" incluye a su vez claves para diferentes cuentas en distintos proveedores Git y dentro de dichas cuentas incluye a su vez repositorios.
 
 Este script se apoya en Git Credential Manager. Está probado solo en MacOS.
+
