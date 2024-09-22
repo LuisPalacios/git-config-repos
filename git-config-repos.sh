@@ -43,7 +43,12 @@ trap ctrl_c INT
 
 IS_WSL2=false
 if grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null; then
-  IS_WSL2=true
+    IS_WSL2=true
+    # Para evitar warnings (cuando llamo a cmd.exe y git.exe) cambio a un
+    # directorio windows. Obtengo la ruta USERPROFILE de Windows y elimino
+    # el retorno de carro (\r). Nota: Necesita instalar wslu (sudo apt install wslu)
+    USERPROFILE=$(wslpath "$(cmd.exe /c echo %USERPROFILE% 2>/dev/null | tr -d '\r')")
+    cd $USERPROFILE
 fi
 
 # ----------------------------------------------------------------------------------------
@@ -211,7 +216,11 @@ check_credential_in_store() {
 # ----------------------------------------------------------------------------------------
 
 # PROGRAMAS que deben estar intalados
-programs=("git" "jq")
+if [ ${IS_WSL2} == true ]; then
+    programs=("git" "jq" "wslpath")
+else
+    programs=("git" "jq")
+fi
 
 # Compruebo las dependencias
 for program in "${programs[@]}"; do
