@@ -1,6 +1,6 @@
 # Configurador de repositorios Git
 
-Este script simplifica la configuración de Git multicuenta si utilizas HTTPS y Git Credential Manager como método de gestión de credenciales.
+Este script simplifica la configuración de Git multicuenta si utilizas HTTPS y Git Credential Manager como método de gestión de credenciales. Puedes encontrar más información sobre esta forma de trabajar con Git, HTTPS y Git Credential Manager en este apunte sobre [Git Multicuenta](https://www.luispa.com/desarrollo/2024/09/21/git-multicuenta.html).
 
 Lee y analiza el archivo `git-config-repos.json`, de donde obtiene parámetros globales de GIT y parámetros específicos para varias cuentas y repositorios.
 
