@@ -115,8 +115,11 @@ check_credential_in_store() {
             echo "ERROR TODAVIA NO SE SOPORTA WINDOWS WSL2"
             return 1
         else
-            secret-tool search --all "git:" | grep "$1" &>/dev/null
-            return $?
+            output=$(secret-tool search service "git:$1" account "$2")
+            if [ -n "$output" ]; then
+                return 0
+            fi
+            return 1
         fi
         ;;
     esac
