@@ -5,9 +5,15 @@
 # ----------------------------------------------------------------------------------------
 # Autor: Luis Palacios
 # Fecha: 21 de septiembre de 2024
-# Multiplataforma: Probado en Linux, MacOS y Windows con WSL2
+#
+# SCRIPT MULTIPLATAFORMA: Probado en Linux, MacOS y Windows con WSL2
+#
+# Para los usuarios de Windows. Este script modifica el comportamiento de GIT en Windows, 
+# y hace modificaciones en el File System NTFS (C:\Users\...) pero debe ser ejecutado 
+# desde WSL2.
 #
 # Descripción:
+#
 # Este script automatiza la configuración de repositorios Git para una estación de trabajo
 # de un desarrollador, utilizando Git Credential Manager para manejar credenciales mediante
 # HTTPS. El script lee un archivo JSON de configuración, que define los parámetros globales
@@ -18,14 +24,22 @@
 #  - Configura las credenciales y parámetros específicos para cada repositorio.
 #
 # Ejecución:
-# git-config-repos.sh
+#
+# chmod +x git-config-repos.sh
+# ./git-config-repos.sh
 #
 # Requisitos:
-# - jq: Es necesario tener instalado jq para parsear el archivo JSON.
-# - Acceso de escritura a los directorios donde se clonarán los repositorios.
+#
+# - Git Credential Manager instalado en Linux, MacOS o Windows (se instala en Windows, 
+#   no en WSL2)
+# - jq: Es necesario tener instalado jq para parsear el archivo JSON. En Windows este
+#   comando debe estar instalado dentro de WSL2
+# - Acceso de escritura a los directorios donde se clonarán los repositorios. En Windows, 
+#   se usará el comando git.exe para que la ejecución sea a nivel Windows
 # - Permisos para configurar Git globalmente en el sistema.
 #
 # Riesgos:
+#
 # - Este script sobrescribirá configuraciones existentes de Git si los parámetros en el
 #   archivo JSON difieren de los actuales. Asegúrese de revisar el archivo JSON antes de
 #   ejecutar el script para evitar configuraciones no deseadas.
@@ -217,29 +231,53 @@ check_credential_in_store() {
 
 # PROGRAMAS que deben estar intalados
 if [ ${IS_WSL2} == true ]; then
-    programs=("git" "jq" "wslpath")
+    programs=("git" "jq" "wslpath" "git-credential-manager.exe")
 else
-    programs=("git" "jq")
+    programs=("git" "jq" "git-credential-manager")
 fi
 
 # Compruebo las dependencias
 for program in "${programs[@]}"; do
     if ! command -v $program &> /dev/null; then
+
         echo
         echo "Error: $program no está instalado."
-        echo
-        echo " linux:"
-        echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
-        echo "       sudo apt install -y jq git"
-        echo
-        echo " macos:"
-        echo "       brew update && brew upgrade"
-        echo "       brew install jq git"
-        echo
-        echo " windows: Desde una sesión de WSL2"
-        echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
-        echo "       sudo apt install -y jq git"
-        echo
+        echo 
+        echo "Hay una serie de dependencias que tienes que tener instaladas:"
+        echo 
+
+        case "$OSTYPE" in
+            # MacOS
+            darwin*|freebsd*)
+                echo " macos:"
+                echo "       brew update && brew upgrade"
+                echo "       brew install jq git"
+                echo "       brew tap microsoft/git"
+                echo "       brew install --cask git-credential-manager-core"
+                echo
+                ;;
+            # Linux
+            *)
+                if [ ${IS_WSL2} == true ]; then
+                    echo " windows: Desde una sesión de WSL2"
+                    echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
+                    echo "       sudo apt install -y jq git"
+                    echo
+                    echo " Asegúrate de tener instalador el Git Credential Manager para Windows"
+                    echo " https://github.com/git-ecosystem/git-credential-manager/releases"
+                    echo
+                    echo
+                else
+                    echo " linux:"
+                    echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
+                    echo "       sudo apt install -y jq git"
+                    echo
+                    echo " Asegúrate de tener instalador el Git Credential Manager para Linux"
+                    echo " https://github.com/git-ecosystem/git-credential-manager/releases"
+                    echo " Ejemplo: sudo dpkg -i gcm-linux_amd64.2.5.1.deb"
+                fi
+                ;;
+        esac
         exit 1
     fi
 done
@@ -329,7 +367,7 @@ echo_status ok
 
 # Configurar globalmente Git
 echo_message "Configuración de Git global"
-$git_command config --global credential.helper "$credential_helper"
+$git_command config --global --replace-all credential.helper "$credential_helper"
 $git_command config --global credential.credentialStore "$credential_store"
 accounts=$(jq -r '.accounts | keys[]' "$git_config_repos_json_file")
 for account in $accounts; do
