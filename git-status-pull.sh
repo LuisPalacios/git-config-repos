@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ----------------------------------------------------------------------------------------
 # git-status-pull.sh
@@ -19,12 +19,20 @@
 #
 # Se utilizan colores para mejorar la legibilidad, y todos los mensajes se formatean dinámicamente.
 
+# Compruebo si estoy bajo WSL2
+IS_WSL2=false
+cmdgit="git"
+if grep -qEi "(Microsoft|WSL)" /proc/version &>/dev/null; then
+    IS_WSL2=true
+    cmdgit="git.exe"
+fi
+
 #
 # Variables globales
 verbose_output=()
 pull=false  # Se establece en true si se usa el comando "pull"
 prg=$(basename $0)
-
+evaluated_repos=()  # Lista de repositorios ya evaluados
 
 # ----------------------------------------------------------------------------------------
 # Mostrar mensajes en color y justificados a la derecha
@@ -156,6 +164,18 @@ show_usage() {
     exit 0
 }
 
+# Función para verificar si un repositorio está dentro de otro ya evaluado
+is_repo_inside_another() {
+    local repo_path=$1
+
+    for evaluated_repo in "${evaluated_repos[@]}"; do
+        if [[ "$repo_path" == "$evaluated_repo"* ]]; then
+            return 0  # Si el repositorio está dentro de otro, retornar true
+        fi
+    done
+    return 1  # Si no está dentro de otro, retornar false
+}
+
 # Función para verificar el estado de un repositorio git
 check_git_status() {
     local repo_path=$1
@@ -169,12 +189,23 @@ check_git_status() {
     local moved=0
     local pending_push=0
 
+    # Verificar si el repositorio ya está evaluado o si está dentro de otro
+    if is_repo_inside_another "$repo_path"; then
+        return
+    fi
+
+    # Añadir el repositorio a la lista de evaluados
+    evaluated_repos+=("$repo_path")
+
+    # Guardar el directorio actual
+    local current_dir=$(pwd)
+
     # Moverse al repositorio
-    cd "$repo_path" || exit 1
+    cd "$repo_path"
 
     # Imprimir la ruta del repositorio
     if [[ "$repo_path" == "." ]]; then
-        echo "$(basename "$PWD")"
+        echo_message "$(basename "$PWD")"
     else
         echo_message "$repo_path"
     fi
@@ -183,25 +214,25 @@ check_git_status() {
     verbose_output=()
 
     # Verificar si la rama tiene un upstream configurado
-    local upstream=$(git rev-parse --symbolic-full-name --abbrev-ref @{u} 2>/dev/null)
+    local upstream=$($cmdgit rev-parse --symbolic-full-name --abbrev-ref "@{u}" 2>/dev/null)
     if [ -z "$upstream" ]; then
         echo_custom_msg "  Upstream:" "Falta Upstream" "${COLOR_RED}"
-        cd - >/dev/null || return 1
+        cd "$current_dir"
         return
     fi
 
     # Hacer fetch para saber si estamos atrasados
-    git fetch origin --quiet
+    $cmdgit fetch origin --quiet
 
     # Nombre de la rama
-    branch_name=$(git rev-parse --abbrev-ref HEAD)
+    branch_name=$($cmdgit rev-parse --abbrev-ref HEAD)
     if $verbose; then
         echo_custom_msg "  Rama:" "$branch_name" "${COLOR_CYAN}"
     fi
 
     # Información de Adelantado/Atrasado
-    ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo "0")
-    behind=$(git rev-list --count HEAD..@{u} 2>/dev/null || echo "0")
+    ahead=$($cmdgit rev-list --count @{u}..HEAD 2>/dev/null || echo "0")
+    behind=$($cmdgit rev-list --count HEAD..@{u} 2>/dev/null || echo "0")
     if $verbose; then
         if [ "$ahead" -ne 0 ]; then
             echo_custom_msg "  Commits adelantados:" "$ahead" "${COLOR_RED}"
@@ -221,7 +252,7 @@ check_git_status() {
     fi
 
     # Verificar stash
-    stashed=$(git stash list | wc -l | xargs)
+    stashed=$($cmdgit stash list | wc -l | xargs)
     if [ "$stashed" -ne 0 ]; then
         if $verbose; then
             echo_custom_msg "  Elementos en stash:" "$stashed" "${COLOR_RED}"
@@ -229,7 +260,7 @@ check_git_status() {
     fi
 
     # Verificar cambios en stage
-    staged=$(git diff --cached --name-only | wc -l | xargs)
+    staged=$($cmdgit diff --cached --name-only | wc -l | xargs)
     if [ "$staged" -ne 0 ]; then
         if $verbose; then
             echo_custom_msg "  Archivos en stage:" "$staged" "${COLOR_RED}"
@@ -237,7 +268,7 @@ check_git_status() {
     fi
 
     # Verificar archivos no rastreados
-    untracked=$(git ls-files --others --exclude-standard | wc -l | xargs)
+    untracked=$($cmdgit ls-files --others --exclude-standard | wc -l | xargs)
     if [ "$untracked" -ne 0 ]; then
         if $verbose; then
             echo_custom_msg "  Archivos no rastreados:" "$untracked" "${COLOR_RED}"
@@ -245,7 +276,7 @@ check_git_status() {
     fi
 
     # Verificar archivos modificados
-    modified=$(git ls-files -m | wc -l | xargs)
+    modified=$($cmdgit ls-files -m | wc -l | xargs)
     if [ "$modified" -ne 0 ]; then
         if $verbose; then
             echo_custom_msg "  Archivos modificados:" "$modified" "${COLOR_RED}"
@@ -253,7 +284,7 @@ check_git_status() {
     fi
 
     # Verificar archivos renombrados/movidos
-    moved=$(git diff --name-status | grep '^R' | wc -l | xargs)
+    moved=$($cmdgit diff --name-status | grep '^R' | wc -l | xargs)
     if [ "$moved" -ne 0 ]; then
         if $verbose; then
             echo_custom_msg "  Archivos movidos:" "$moved" "${COLOR_RED}"
@@ -275,7 +306,7 @@ check_git_status() {
         else
             if $pull; then
                 echo_status "pull"
-                git pull --quiet
+                $cmdgit pull --quiet
             else
                 echo_status "needspull"
                 if $verbose; then
@@ -288,7 +319,8 @@ check_git_status() {
         print_verbose_output
     fi
 
-    cd - >/dev/null || exit 1
+    # Volver al directorio original
+    cd "$current_dir"
 }
 
 # ----------------------------------------------------------------------------------------
@@ -328,7 +360,12 @@ else
     echo "Análisis de que repositorios git necesitan un pull"
 fi
 echo
-find . -type d -name ".git" | while read -r git_dir; do
+# find . -type d -name ".git" | while read -r git_dir; do
+#     repo_path=$(dirname "$git_dir")
+#     check_git_status "$repo_path"
+# done
+repos=$(find . -type d -name ".git")
+for git_dir in $repos; do
     repo_path=$(dirname "$git_dir")
     check_git_status "$repo_path"
 done
