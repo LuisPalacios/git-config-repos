@@ -8,8 +8,8 @@
 #
 # SCRIPT MULTIPLATAFORMA: Probado en Linux, MacOS y Windows con WSL2
 #
-# Para los usuarios de Windows. Este script modifica el comportamiento de GIT en Windows, 
-# y hace modificaciones en el File System NTFS (C:\Users\...) pero debe ser ejecutado 
+# Para los usuarios de Windows. Este script modifica el comportamiento de GIT en Windows,
+# y hace modificaciones en el File System NTFS (C:\Users\...) pero debe ser ejecutado
 # desde WSL2.
 #
 # Descripción:
@@ -30,11 +30,11 @@
 #
 # Requisitos:
 #
-# - Git Credential Manager instalado en Linux, MacOS o Windows (se instala en Windows, 
+# - Git Credential Manager instalado en Linux, MacOS o Windows (se instala en Windows,
 #   no en WSL2)
 # - jq: Es necesario tener instalado jq para parsear el archivo JSON. En Windows este
 #   comando debe estar instalado dentro de WSL2
-# - Acceso de escritura a los directorios donde se clonarán los repositorios. En Windows, 
+# - Acceso de escritura a los directorios donde se clonarán los repositorios. En Windows,
 #   se usará el comando git.exe para que la ejecución sea a nivel Windows
 # - Permisos para configurar Git globalmente en el sistema.
 #
@@ -56,7 +56,7 @@ trap ctrl_c INT
 # ----------------------------------------------------------------------------------------
 
 IS_WSL2=false
-if grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null; then
+if grep -qEi "(Microsoft|WSL)" /proc/version &>/dev/null; then
     IS_WSL2=true
     # Para evitar warnings (cuando llamo a cmd.exe y git.exe) cambio a un
     # directorio windows. Obtengo la ruta USERPROFILE de Windows y elimino
@@ -92,22 +92,22 @@ echo_status() {
     local status_color
 
     case $status in
-        ok)
-            status_msg="OK"
-            status_color=${COLOR_GREEN}
-            ;;
-        warning)
-            status_msg="WARNING"
-            status_color=${COLOR_YELLOW}
-            ;;
-        error)
-            status_msg="ERROR"
-            status_color=${COLOR_RED}
-            ;;
-        *)
-            status_msg="UNKNOWN"
-            status_color=${COLOR_RED}
-            ;;
+    ok)
+        status_msg="OK"
+        status_color=${COLOR_GREEN}
+        ;;
+    warning)
+        status_msg="WARNING"
+        status_color=${COLOR_YELLOW}
+        ;;
+    error)
+        status_msg="ERROR"
+        status_color=${COLOR_RED}
+        ;;
+    *)
+        status_msg="UNKNOWN"
+        status_color=${COLOR_RED}
+        ;;
     esac
 
     local status_len=${#status_msg}
@@ -124,8 +124,8 @@ echo_status() {
 
 # Función de controlador de señal para manejar CTRL-C
 function ctrl_c() {
-  echo "** Abortado por CTRL-C"
-  exit
+    echo "** Abortado por CTRL-C"
+    exit
 }
 
 # Función para convertir una ruta de WSL a una ruta de Windows
@@ -188,7 +188,7 @@ wcm_search() {
 
 # Función para comprobar la existencia de un comando
 check_command() {
-    if ! which "$1" > /dev/null; then
+    if ! which "$1" >/dev/null; then
         echo "Error: $1 no se encuentra en el PATH."
         return 1
     else
@@ -200,14 +200,14 @@ check_command() {
 check_credential_in_store() {
 
     case "$OSTYPE" in
-      # MacOS
-      darwin*|freebsd*)
+    # MacOS
+    darwin* | freebsd*)
         # OSX Keychain
         security find-generic-password -s "git:$1" -a "$2" &>/dev/null
         return $?
         ;;
-      # Linux
-      *)
+    # Linux
+    *)
         if [ ${IS_WSL2} == true ]; then
             # Windows Credential Manager
             wcm_search "git:$1" "$2"
@@ -238,45 +238,45 @@ fi
 
 # Compruebo las dependencias
 for program in "${programs[@]}"; do
-    if ! command -v $program &> /dev/null; then
+    if ! command -v $program &>/dev/null; then
 
         echo
         echo "Error: $program no está instalado."
-        echo 
+        echo
         echo "Hay una serie de dependencias que tienes que tener instaladas:"
-        echo 
+        echo
 
         case "$OSTYPE" in
-            # MacOS
-            darwin*|freebsd*)
-                echo " macos:"
-                echo "       brew update && brew upgrade"
-                echo "       brew install jq git"
-                echo "       brew tap microsoft/git"
-                echo "       brew install --cask git-credential-manager-core"
+        # MacOS
+        darwin* | freebsd*)
+            echo " macos:"
+            echo "       brew update && brew upgrade"
+            echo "       brew install jq git"
+            echo "       brew tap microsoft/git"
+            echo "       brew install --cask git-credential-manager-core"
+            echo
+            ;;
+        # Linux
+        *)
+            if [ ${IS_WSL2} == true ]; then
+                echo " windows: Desde una sesión de WSL2"
+                echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
+                echo "       sudo apt install -y jq git"
                 echo
-                ;;
-            # Linux
-            *)
-                if [ ${IS_WSL2} == true ]; then
-                    echo " windows: Desde una sesión de WSL2"
-                    echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
-                    echo "       sudo apt install -y jq git"
-                    echo
-                    echo " Asegúrate de tener instalador el Git Credential Manager para Windows"
-                    echo " https://github.com/git-ecosystem/git-credential-manager/releases"
-                    echo
-                    echo
-                else
-                    echo " linux:"
-                    echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
-                    echo "       sudo apt install -y jq git"
-                    echo
-                    echo " Asegúrate de tener instalador el Git Credential Manager para Linux"
-                    echo " https://github.com/git-ecosystem/git-credential-manager/releases"
-                    echo " Ejemplo: sudo dpkg -i gcm-linux_amd64.2.5.1.deb"
-                fi
-                ;;
+                echo " Asegúrate de tener instalador el Git Credential Manager para Windows"
+                echo " https://github.com/git-ecosystem/git-credential-manager/releases"
+                echo
+                echo
+            else
+                echo " linux:"
+                echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
+                echo "       sudo apt install -y jq git"
+                echo
+                echo " Asegúrate de tener instalador el Git Credential Manager para Linux"
+                echo " https://github.com/git-ecosystem/git-credential-manager/releases"
+                echo " Ejemplo: sudo dpkg -i gcm-linux_amd64.2.5.1.deb"
+            fi
+            ;;
         esac
         exit 1
     fi
@@ -341,14 +341,13 @@ if [ ! -f "$git_config_repos_json_file" ]; then
 fi
 
 # Validar el archivo JSON con jq
-jq '.' "$git_config_repos_json_file" > /dev/null 2>&1
+jq '.' "$git_config_repos_json_file" >/dev/null 2>&1
 if [ $? -ne 0 ]; then
     echo_status error
     echo "ERROR: El archivo JSON $git_config_repos_json_file contiene errores de sintaxis."
     exit 1
 fi
 echo_status ok
-
 
 # Extraer configuraciones globales
 global_folder=$(jq -r '.global.folder' "$git_config_repos_json_file")
@@ -398,7 +397,11 @@ for account in $accounts; do
         echo_status warning
         read -p "Preapara tu navegador para autenticar a $account > $account_username - (Enter/Ctrl-C)." confirm
         credenciales="/tmp/tmp-credenciales"
-        ( echo url="$account_credential_url"; echo "username=$account_username"; echo ) | $git_command credential fill > $credenciales 2>/dev/null
+        (
+            echo url="$account_credential_url"
+            echo "username=$account_username"
+            echo
+        ) | $git_command credential fill >$credenciales 2>/dev/null
         if [ -f $credenciales ] && [ ! -s $credenciales ]; then
             # No deberia entrar por aquí
             echo "    Ya se habián configurado las credenciales en el pasado"
@@ -420,10 +423,6 @@ for account in $accounts; do
     account_credential_url=$(jq -r ".accounts[\"$account\"].credential_url" "$git_config_repos_json_file")
     account_username=$(jq -r ".accounts[\"$account\"].username" "$git_config_repos_json_file")
     account_folder=$(jq -r ".accounts[\"$account\"].folder" "$git_config_repos_json_file")
-    account_subfolder=$(jq -r ".accounts[\"$account\"].subfolder" "$git_config_repos_json_file")
-    if [ $account_subfolder == "null" ]; then
-        account_subfolder=""
-    fi
     account_provider=$(jq -r ".accounts[\"$account\"].provider" "$git_config_repos_json_file")
     account_useHttpPath=$(jq -r ".accounts[\"$account\"].useHttpPath" "$git_config_repos_json_file")
 
@@ -443,16 +442,11 @@ for account in $accounts; do
         repo_name=$(jq -r ".accounts[\"$account\"].repos[\"$repo\"].name" "$git_config_repos_json_file")
         repo_email=$(jq -r ".accounts[\"$account\"].repos[\"$repo\"].email" "$git_config_repos_json_file")
 
-        # Crea estructura de carpeta(s) si el repo tiene un subdir
-        if [ -n "$account_subfolder" ]; then
-            repo_path="$global_folder/$account_folder/$account_subfolder/$repo"
-        else
-            repo_path="$global_folder/$account_folder/$repo"
-        fi
+        repo_path="$global_folder/$account_folder/$repo"
 
         # Si el repositorio no existe, clonarlo
         if [ ! -d "$repo_path" ]; then
-            echo         "   - $repo_path"
+            echo "   - $repo_path"
             echo_message "    ⬇ $repo_path"
 
             # Si estamos en WSL2 convertir la ruta de destino del clone a formato C:\..
