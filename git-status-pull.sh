@@ -7,17 +7,16 @@
 # Fecha: 3 de octubre de 2024
 #
 
-# Este script verifica el estado de múltiples repositorios Git desde el directorio actual.
-# Proporciona información detallada sobre cada repositorio, incluyendo:
-# - La rama actual
-# - El número de commits adelantados/atrasados respecto al upstream
-# - La presencia de archivos no rastreados, modificados, en stage y stashes
-# - Si el repositorio es seguro para hacer pull o necesita ser revisado
+# Este script verifica el estado de múltiples repositorios Git a partir del
+# directorio actual. Su objetivo es informar al usuario sobre qué repositorios
+# necesitan un pull para estar sincronizados con su upstream. Además, el script
+# puede hacer pull automáticamente si se proporciona el argumento "pull".
 #
-# El script soporta un modo verbose (-v) que proporciona una salida más detallada, y
-# un modo pull (-p) para hacer pull de los cambios automáticamente si es posible.
+# También es capaz de proporcionar información detallada sobre cada repositorio,
+# cuando no se puede hacer pull automáticamente, informando de la razón por la que
+# el repositorio no está limpio y necesita ser revisado. Soporta un modo verbose
+# (-v) para dar dicha informacion más detallada
 #
-# Se utilizan colores para mejorar la legibilidad, y todos los mensajes se formatean dinámicamente.
 
 # Compruebo si estoy bajo WSL2
 IS_WSL2=false
@@ -113,6 +112,10 @@ echo_status() {
         status_msg="LIMPIO"
         status_color=${COLOR_RESET}
         ;;
+    clean_behind_main)
+        status_msg="LIMPIO PERO ATRASADA RESPECTO A LA RAMA PRINCIPAL"
+        status_color=${COLOR_YELLOW}
+        ;;
     needspull)
         status_msg="NECESITA PULL"
         status_color=${COLOR_GREEN}
@@ -176,6 +179,26 @@ is_repo_inside_another() {
     return 1  # Si no está dentro de otro, retornar false
 }
 
+# Función para verificar si la rama actual está por detrás de main o master
+check_if_behind_main() {
+    local current_branch=$1
+    local behind_main=0
+
+    # Verificar si la rama actual no es main o master
+    if [[ "$current_branch" != "main" && "$current_branch" != "master" ]]; then
+        for main_branch in "main" "master"; do
+            if $cmdgit show-ref --verify --quiet refs/heads/$main_branch; then
+                behind_main=$($cmdgit rev-list --count "$current_branch".."origin/$main_branch" 2>/dev/null)
+                if [ "$behind_main" -gt 0 ]; then
+                    return 0  # La rama actual está por detrás de la principal
+                fi
+            fi
+        done
+    fi
+
+    return 1  # No está por detrás de main o master
+}
+
 # Función para verificar el estado de un repositorio git
 check_git_status() {
     local repo_path=$1
@@ -188,6 +211,7 @@ check_git_status() {
     local modified=0
     local moved=0
     local pending_push=0
+    local behind_main=false
 
     # Verificar si el repositorio ya está evaluado o si está dentro de otro
     if is_repo_inside_another "$repo_path"; then
@@ -302,7 +326,14 @@ check_git_status() {
     # Verificar si es seguro hacer pull
     if [ "$ahead" -eq 0 ] && [ "$diverged" -eq 0 ] && [ "$stashed" -eq 0 ] && [ "$staged" -eq 0 ] && [ "$untracked" -eq 0 ] && [ "$modified" -eq 0 ] && [ "$moved" -eq 0 ] && [ "$pending_push" -eq 0 ]; then
         if [ "$behind" -eq 0 ]; then
-            echo_status "clean"
+
+            # El repo está limpio, hago una última comprobación por si acaso estoy en una rama distinta a la principal
+            # y si está por detrás de la principal
+            if check_if_behind_main "$branch_name"; then
+                echo_status "clean_behind_main"
+            else
+                echo_status "clean"
+            fi
         else
             if $pull; then
                 echo_status "pull"
