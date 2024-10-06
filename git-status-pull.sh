@@ -29,9 +29,9 @@ fi
 #
 # Variables globales
 verbose_output=()
-pull=false  # Se establece en true si se usa el comando "pull"
+pull=false # Se establece en true si se usa el comando "pull"
 prg=$(basename $0)
-evaluated_repos=()  # Lista de repositorios ya evaluados
+evaluated_repos=() # Lista de repositorios ya evaluados
 
 # ----------------------------------------------------------------------------------------
 # Mostrar mensajes en color y justificados a la derecha
@@ -142,7 +142,7 @@ echo_status() {
     local spaces=$((width - message_len - status_len - 3))
 
     if [ -z "$GITHUB_ACTIONS" ]; then
-        if $verbose; then
+        if [ "$verbose" = "true" ] || [ "$status" != "clean" ]; then
             spaces_literal=$(generate_chars "-" "$spaces")
         else
             spaces_literal=$(generate_chars " " "$spaces")
@@ -173,10 +173,10 @@ is_repo_inside_another() {
 
     for evaluated_repo in "${evaluated_repos[@]}"; do
         if [[ "$repo_path" == "$evaluated_repo"* ]]; then
-            return 0  # Si el repositorio está dentro de otro, retornar true
+            return 0 # Si el repositorio está dentro de otro, retornar true
         fi
     done
-    return 1  # Si no está dentro de otro, retornar false
+    return 1 # Si no está dentro de otro, retornar false
 }
 
 # Función para verificar si la rama actual está por detrás de main o master
@@ -190,13 +190,13 @@ check_if_behind_main() {
             if $cmdgit show-ref --verify --quiet refs/heads/$main_branch; then
                 behind_main=$($cmdgit rev-list --count "$current_branch".."origin/$main_branch" 2>/dev/null)
                 if [ "$behind_main" -gt 0 ]; then
-                    return 0  # La rama actual está por detrás de la principal
+                    return $behind_main # La rama actual está por detrás de la principal
                 fi
             fi
         done
     fi
 
-    return 1  # No está por detrás de main o master
+    return 0 # No está por detrás de main o master
 }
 
 # Función para verificar el estado de un repositorio git
@@ -211,7 +211,7 @@ check_git_status() {
     local modified=0
     local moved=0
     local pending_push=0
-    local behind_main=false
+    local behind_main=0
 
     # Verificar si el repositorio ya está evaluado o si está dentro de otro
     if is_repo_inside_another "$repo_path"; then
@@ -329,11 +329,19 @@ check_git_status() {
 
             # El repo está limpio, hago una última comprobación por si acaso estoy en una rama distinta a la principal
             # y si está por detrás de la principal
-            if check_if_behind_main "$branch_name"; then
+            behind_main=$(check_if_behind_main "$branch_name")
+
+            # Asegúrate de que behind_main no esté vacío y sea un número
+            if [ -n "$behind_main" ] && [ "$behind_main" -gt 0 ] 2>/dev/null; then
+                echo_custom_msg "  Commits por detrás:" "$behind_main" "${COLOR_RED}"
                 echo_status "clean_behind_main"
+                if [ "$verbose" = "true" ]; then
+                    print_verbose_output
+                fi
             else
                 echo_status "clean"
             fi
+
         else
             if $pull; then
                 echo_status "pull"
