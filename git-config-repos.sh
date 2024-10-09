@@ -370,10 +370,12 @@ $git_command config --global --replace-all credential.helper "$credential_helper
 $git_command config --global credential.credentialStore "$credential_store"
 accounts=$(jq -r '.accounts | keys[]' "$git_config_repos_json_file")
 for account in $accounts; do
-    account_credential_url=$(jq -r ".accounts[\"$account\"].credential_url" "$git_config_repos_json_file")
+    account_url=$(jq -r ".accounts[\"$account\"].url" "$git_config_repos_json_file")
     account_username=$(jq -r ".accounts[\"$account\"].username" "$git_config_repos_json_file")
     account_provider=$(jq -r ".accounts[\"$account\"].provider" "$git_config_repos_json_file")
     account_useHttpPath=$(jq -r ".accounts[\"$account\"].useHttpPath" "$git_config_repos_json_file")
+    # Obtengo "gratis", la URL las credenciales desde account_url
+    account_credential_url=$(echo "$account_url" | sed -E 's|(https://[^/]+).*|\1|')
     # Configurar las credenciales globales para la cuenta
     $git_command config --global credential."$account_credential_url".provider "$account_provider"
     $git_command config --global credential."$account_credential_url".useHttpPath "$account_useHttpPath"
@@ -382,11 +384,14 @@ echo_status ok
 
 # CREDENCIALES
 # Iterar sobre las cuentas para los CREDENCIALES
+# En esta seccion se configuran las credenciales en el almacen de credenciales, mediante
+# el proceso de ir a la URL de la cuenta y autenticarse con el navegador
 accounts=$(jq -r '.accounts | keys[]' "$git_config_repos_json_file")
 for account in $accounts; do
     account_url=$(jq -r ".accounts[\"$account\"].url" "$git_config_repos_json_file")
-    account_credential_url=$(jq -r ".accounts[\"$account\"].credential_url" "$git_config_repos_json_file")
     account_username=$(jq -r ".accounts[\"$account\"].username" "$git_config_repos_json_file")
+    # Obtengo "gratis", la URL las credenciales desde account_url
+    account_credential_url=$(echo "$account_url" | sed -E 's|(https://[^/]+).*|\1|')
 
     # Avisar al usuario para que prepare el navegador para que se autentique
     echo_message "Comprobando credenciales de $account > $account_username"
@@ -414,17 +419,24 @@ for account in $accounts; do
     fi
 done
 
-# REPORITORIOS
+# REPOSITORIOS
 # Iterar sobre las cuentas para los REPOSITORIOS
+# En esta sección se clonan los repositorios y se configuran los repositorios locales
 accounts=$(jq -r '.accounts | keys[]' "$git_config_repos_json_file")
 for account in $accounts; do
+
+    # Extraer los valores de la cuenta desde el archivo JSON
     account_url=$(jq -r ".accounts[\"$account\"].url" "$git_config_repos_json_file")
-    account_clone_url=$(jq -r ".accounts[\"$account\"].clone_url" "$git_config_repos_json_file")
-    account_credential_url=$(jq -r ".accounts[\"$account\"].credential_url" "$git_config_repos_json_file")
     account_username=$(jq -r ".accounts[\"$account\"].username" "$git_config_repos_json_file")
     account_folder=$(jq -r ".accounts[\"$account\"].folder" "$git_config_repos_json_file")
     account_provider=$(jq -r ".accounts[\"$account\"].provider" "$git_config_repos_json_file")
     account_useHttpPath=$(jq -r ".accounts[\"$account\"].useHttpPath" "$git_config_repos_json_file")
+    account_user_name=$(jq -r ".accounts[\"$account\"].name" "$git_config_repos_json_file")
+    account_user_email=$(jq -r ".accounts[\"$account\"].email" "$git_config_repos_json_file")
+
+    # Obtengo valores "gratis", la URL de clonación y la de las credenciales
+    account_clone_url=$(echo "$account_url" | sed -E "s|https://(.*)|https://$account_username@\1|")
+    account_credential_url=$(echo "$account_url" | sed -E 's|(https://[^/]+).*|\1|')
 
     # Crear el directorio para la cuenta
     echo_message "  $account_folder"
@@ -439,9 +451,17 @@ for account in $accounts; do
     # Iterar sobre los repositorios de la cuenta
     repos=$(jq -r ".accounts[\"$account\"].repos | keys[]" "$git_config_repos_json_file")
     for repo in $repos; do
+        # Verifico si tengo el nombre y el email del usuario a nivel de repositorio
         repo_name=$(jq -r ".accounts[\"$account\"].repos[\"$repo\"].name" "$git_config_repos_json_file")
+        if [ "$repo_name" != "" ] && [ "$repo_name" != "null" ]; then
+            account_user_name=$repo_name
+        fi
         repo_email=$(jq -r ".accounts[\"$account\"].repos[\"$repo\"].email" "$git_config_repos_json_file")
+        if [ "$repo_email" != "" ] && [ "$repo_email" != "null" ]; then
+            account_user_email=$repo_email
+        fi
 
+        # Construyo la ruta del repositorio
         repo_path="$global_folder/$account_folder/$repo"
 
         # Si el repositorio no existe, clonarlo
@@ -471,8 +491,12 @@ for account in $accounts; do
         # Configurar el repositorio local
         cd "$repo_path" || continue
         $git_command remote set-url origin "$account_url/$repo.git"
-        $git_command config user.name "$repo_name"
-        $git_command config user.email "$repo_email"
+        if [ "$account_user_name" != "" ] && [ "$account_user_name" != "null" ]; then
+            $git_command config user.name "$account_user_name"
+        fi
+        if [ "$account_user_email" != "" ] && [ "$account_user_email" != "null" ]; then
+            $git_command config user.email "$account_user_email"
+        fi
         $git_command remote set-url --push origin "$account_url/$repo.git"
         $git_command config credential."$account_credential_url".username "$account_username"
 

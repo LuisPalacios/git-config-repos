@@ -28,6 +28,10 @@
     // Configuración de cada una de tus cuentas en los proveedores Git y
     // dentro de cada una de ellas la configuración de los repositorios
     //
+    // El user.name y user.email se puede configurar a nivel de cuenta o de repositorio
+    // Si se configura a nivel de cuenta, se usará para todos los repositorios de esa cuenta
+    // excepto en aquellos repositorios que tengan configurado user.name y user.email
+    //
     "accounts": {
         // Cuenta con GitHub personal
         "GitHub-LuisPalacios": {
@@ -38,14 +42,13 @@
             "folder": "02.github-luispa",
             "provider": "github",
             "useHttpPath": "false",
+            "name": "Luis Palacios",
+            "email": "luis.palacios.derqui@gmail.com",
             "repos": {
-                "LuisPalacios.github.io": {
-                    "name": "Luis Palacios",
-                    "email": "luis.palacios.derqui@gmail.com"
-                },
+                "LuisPalacios.github.io": {},
                 "git-repo-eol-analyzer": {
-                    "name": "Luis Palacios",
-                    "email": "luis.palacios.derqui@gmail.com"
+                    "name": "LuisPa",
+                    "email": "another.email@gmail.com"
                 }
             }
         },
@@ -58,15 +61,11 @@
             "folder": "03.github-renueva",
             "provider": "github",
             "useHttpPath": "false",
+            "name": "LuispaRenueva",
+            "email": "luispa@renueva.com",
             "repos": {
-                "renueva.consulting": {
-                    "name": "LuispaRenueva",
-                    "email": "luispa@renueva.com"
-                },
-                "renueva.consulting.lib": {
-                    "name": "LuispaRenueva",
-                    "email": "luispa@renueva.com"
-                }
+                "renueva.consulting": {},
+                "renueva.consulting.lib": {}
             }
         },
         // Cuenta que puedes tener con otro usuario personal en GitHub
@@ -95,11 +94,10 @@
             "subfolder": "palas",
             "provider": "generic",
             "useHttpPath": "false",
+            "name": "Luis Palacios",
+            "email": "luis.home@gmail.com",
             "repos": {
-                "cumples": {
-                    "name": "Luis Palacios",
-                    "email": "luis.home@gmail.com"
-                }
+                "cumples": {}
             }
         }
     }
