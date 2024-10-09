@@ -180,23 +180,27 @@ is_repo_inside_another() {
 }
 
 # Función para verificar si la rama actual está por detrás de main o master
+# Devuelve 0 si está por detrás, 1 si no lo está
 check_if_behind_main() {
     local current_branch=$1
-    local behind_main=0
 
     # Verificar si la rama actual no es main o master
     if [[ "$current_branch" != "main" && "$current_branch" != "master" ]]; then
         for main_branch in "main" "master"; do
             if $cmdgit show-ref --verify --quiet refs/heads/$main_branch; then
-                behind_main=$($cmdgit rev-list --count "$current_branch".."origin/$main_branch" 2>/dev/null)
-                if [ "$behind_main" -gt 0 ]; then
-                    return $behind_main # La rama actual está por detrás de la principal
+                # Obtener la fecha del último commit en la rama 'main' o 'master'
+                MAIN_COMMIT_DATE=$(git log -1 --format=%ct origin/$main_branch)
+                # Obtener la fecha del último commit en la rama actual
+                BRANCH_COMMIT_DATE=$(git log -1 --format=%ct $current_branch)
+                # Comparar las fechas
+                if [ "$BRANCH_COMMIT_DATE" -lt "$MAIN_COMMIT_DATE" ]; then
+                    #echo "El último commit en la rama 'feature' es más antiguo que el de 'main'."
+                    return 0
                 fi
             fi
         done
     fi
-
-    return 0 # No está por detrás de main o master
+    return 1
 }
 
 # Función para verificar el estado de un repositorio git
@@ -327,13 +331,10 @@ check_git_status() {
     if [ "$ahead" -eq 0 ] && [ "$diverged" -eq 0 ] && [ "$stashed" -eq 0 ] && [ "$staged" -eq 0 ] && [ "$untracked" -eq 0 ] && [ "$modified" -eq 0 ] && [ "$moved" -eq 0 ] && [ "$pending_push" -eq 0 ]; then
         if [ "$behind" -eq 0 ]; then
 
-            # El repo está limpio, hago una última comprobación por si acaso estoy en una rama distinta a la principal
-            # y si está por detrás de la principal
+            # El repo está limpio, hago una última comprobación por si acaso estoy en una rama distinta a la principal y si está por detrás de la principal
             behind_main=$(check_if_behind_main "$branch_name")
-
-            # Asegúrate de que behind_main no esté vacío y sea un número
-            if [ -n "$behind_main" ] && [ "$behind_main" -gt 0 ] 2>/dev/null; then
-                echo_custom_msg "  Commits por detrás:" "$behind_main" "${COLOR_RED}"
+            if [ "$behind_main" -eq 0 ] 2>/dev/null; then
+                echo_custom_msg "  Rama por detrás de la principal: " "yes" "${COLOR_RED}"
                 echo_status "clean_behind_main"
                 if [ "$verbose" = "true" ]; then
                     print_verbose_output
