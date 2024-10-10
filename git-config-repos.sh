@@ -375,8 +375,8 @@ global_folder=$(jq -r '.global.folder' "$git_config_repos_json_file")
 credential_ssh=$(jq -r '.global.credential_ssh.enabled' "$git_config_repos_json_file")
 ssh_folder=$(jq -r '.global.credential_ssh.ssh_folder' "$git_config_repos_json_file")
 credential_gcm=$(jq -r '.global.credential_gcm.enabled' "$git_config_repos_json_file")
-credential_helper=$(jq -r '.global.credential.helper' "$git_config_repos_json_file")
-credential_store=$(jq -r '.global.credential.credentialStore' "$git_config_repos_json_file")
+credential_helper=$(jq -r '.global.credential_gcm.helper' "$git_config_repos_json_file")
+credential_store=$(jq -r '.global.credential_gcm.credentialStore' "$git_config_repos_json_file")
 
 #
 # COMPROBAR PROGRAMAS INSTALADOS
