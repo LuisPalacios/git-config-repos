@@ -8,15 +8,20 @@
 #
 # SCRIPT MULTIPLATAFORMA: Probado en Linux, MacOS y Windows con WSL2
 #
-# Para los usuarios de Windows. Este script modifica el comportamiento de GIT en Windows,
-# y hace modificaciones en el File System NTFS (C:\Users\...) pero debe ser ejecutado
-# desde WSL2.
+# Nota previa solo para usuarios de Windows. Este script debe ser ejecutado desde WSL2,
+# aunque las modificaciones que hace serán en el "C:\Users\..."
 #
 # Descripción:
 #
-# Este script automatiza la configuración de repositorios Git para una estación de trabajo
-# de un desarrollador, utilizando Git Credential Manager para manejar credenciales mediante
-# HTTPS. El script lee un archivo JSON de configuración, que define los parámetros globales
+# Este script permite configurar repositorios Git de forma automática en tu equipo,
+# soportando múltiples cuentas con uno o más proveedores Git (GitHub, GitLab, Gitea),
+# y también definiendo con qué método quieres autenticarte en cada cuenta y repositorio.
+#
+# Soporta dos métodos. El primero es HTTPS + Git Credential Manager, muy útil y recomendado
+# en entornos de desktop. El segundo es SSH multicuenta, que normalmente uso en equipos
+# “headless”, servidores a los que conecto en remoto vía (CLI o VSCode remote).
+#
+# El script lee un archivo JSON de configuración, que define los parámetros globales
 # y específicos de cada cuenta y repositorio, y realiza las siguientes acciones:
 #
 #  - Configura Git globalmente según los parámetros definidos en el archivo JSON.
@@ -32,10 +37,12 @@
 #
 # - Git Credential Manager instalado en Linux, MacOS o Windows (se instala en Windows,
 #   no en WSL2)
+# - Cliente de SSH instalado y configurado para autenticación SSH.
 # - jq: Es necesario tener instalado jq para parsear el archivo JSON. En Windows este
 #   comando debe estar instalado dentro de WSL2
 # - Acceso de escritura a los directorios donde se clonarán los repositorios. En Windows,
 #   se usará el comando git.exe para que la ejecución sea a nivel Windows
+# - Acceso a Internet para clonar los repositorios.
 # - Permisos para configurar Git globalmente en el sistema.
 #
 # Riesgos:
@@ -54,6 +61,8 @@ trap ctrl_c INT
 # ----------------------------------------------------------------------------------------
 # Variables Globales
 # ----------------------------------------------------------------------------------------
+credential_ssh="false"
+credential_gcm="true"
 
 IS_WSL2=false
 if grep -qEi "(Microsoft|WSL)" /proc/version &>/dev/null; then
@@ -98,6 +107,10 @@ echo_status() {
         ;;
     warning)
         status_msg="WARNING"
+        status_color=${COLOR_YELLOW}
+        ;;
+    created)
+        status_msg="CREADA"
         status_color=${COLOR_YELLOW}
         ;;
     error)
@@ -229,58 +242,65 @@ check_credential_in_store() {
 # Dependencias del Script
 # ----------------------------------------------------------------------------------------
 
-# PROGRAMAS que deben estar intalados
-if [ ${IS_WSL2} == true ]; then
-    programs=("git" "jq" "wslpath" "git-credential-manager.exe")
-else
-    programs=("git" "jq" "git-credential-manager")
-fi
-
-# Compruebo las dependencias
-for program in "${programs[@]}"; do
-    if ! command -v $program &>/dev/null; then
-
-        echo
-        echo "Error: $program no está instalado."
-        echo
-        echo "Hay una serie de dependencias que tienes que tener instaladas:"
-        echo
-
-        case "$OSTYPE" in
-        # MacOS
-        darwin* | freebsd*)
-            echo " macos:"
-            echo "       brew update && brew upgrade"
-            echo "       brew install jq git"
-            echo "       brew tap microsoft/git"
-            echo "       brew install --cask git-credential-manager-core"
-            echo
-            ;;
-        # Linux
-        *)
-            if [ ${IS_WSL2} == true ]; then
-                echo " windows: Desde una sesión de WSL2"
-                echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
-                echo "       sudo apt install -y jq git"
-                echo
-                echo " Asegúrate de tener instalador el Git Credential Manager para Windows"
-                echo " https://github.com/git-ecosystem/git-credential-manager/releases"
-                echo
-                echo
-            else
-                echo " linux:"
-                echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
-                echo "       sudo apt install -y jq git"
-                echo
-                echo " Asegúrate de tener instalador el Git Credential Manager para Linux"
-                echo " https://github.com/git-ecosystem/git-credential-manager/releases"
-                echo " Ejemplo: sudo dpkg -i gcm-linux_amd64.2.5.1.deb"
-            fi
-            ;;
-        esac
-        exit 1
+# Comprobar si las dependencias necesarias están instaladas
+check_installed_programs() {
+    # PROGRAMAS que deben estar intalados
+    if [ ${IS_WSL2} == true ]; then
+        programs=("git" "jq" "wslpath" "git-credential-manager.exe")
+    else
+        if [ "$credential_gcm" == "true" ]; then
+            programs=("git" "jq" "git-credential-manager")
+        else
+            programs=("git" "jq")
+        fi
     fi
-done
+
+    # Compruebo las dependencias
+    for program in "${programs[@]}"; do
+        if ! command -v $program &>/dev/null; then
+
+            echo
+            echo "Error: $program no está instalado."
+            echo
+            echo "Hay una serie de dependencias que tienes que tener instaladas:"
+            echo
+
+            case "$OSTYPE" in
+            # MacOS
+            darwin* | freebsd*)
+                echo " macos:"
+                echo "       brew update && brew upgrade"
+                echo "       brew install jq git"
+                echo "       brew tap microsoft/git"
+                echo "       brew install --cask git-credential-manager-core"
+                echo
+                ;;
+            # Linux
+            *)
+                if [ ${IS_WSL2} == true ]; then
+                    echo " windows: Desde una sesión de WSL2"
+                    echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
+                    echo "       sudo apt install -y jq git"
+                    echo
+                    echo " Asegúrate de tener instalador el Git Credential Manager para Windows"
+                    echo " https://github.com/git-ecosystem/git-credential-manager/releases"
+                    echo
+                    echo
+                else
+                    echo " linux:"
+                    echo "       sudo apt update && sudo apt upgrade -y && sudo apt full-upgrade -y"
+                    echo "       sudo apt install -y jq git"
+                    echo
+                    echo " Asegúrate de tener instalador el Git Credential Manager para Linux"
+                    echo " https://github.com/git-ecosystem/git-credential-manager/releases"
+                    echo " Ejemplo: sudo dpkg -i gcm-linux_amd64.2.5.1.deb"
+                fi
+                ;;
+            esac
+            exit 1
+        fi
+    done
+}
 
 # En WSL2 comprobar si cmd.exe y git.exe están en el PATH
 # Nota, en WSL2 uso git.exe en vez de git de ubuntu porque es compatible con
@@ -349,11 +369,21 @@ if [ $? -ne 0 ]; then
 fi
 echo_status ok
 
-# Extraer configuraciones globales
+# GLOBAL
+# Extraer configuración global del JSON
 global_folder=$(jq -r '.global.folder' "$git_config_repos_json_file")
+credential_ssh=$(jq -r '.global.credential_ssh.enabled' "$git_config_repos_json_file")
+ssh_folder=$(jq -r '.global.credential_ssh.ssh_folder' "$git_config_repos_json_file")
+credential_gcm=$(jq -r '.global.credential_gcm.enabled' "$git_config_repos_json_file")
 credential_helper=$(jq -r '.global.credential.helper' "$git_config_repos_json_file")
 credential_store=$(jq -r '.global.credential.credentialStore' "$git_config_repos_json_file")
 
+#
+# COMPROBAR PROGRAMAS INSTALADOS
+#
+check_installed_programs
+
+# DIRECTORIO GLOBAL
 # Crear el directorio global de Git
 echo_message "Directorio Git: $global_folder"
 mkdir -p "$global_folder" &>/dev/null
@@ -364,60 +394,170 @@ if [ $? -ne 0 ]; then
 fi
 echo_status ok
 
-# Configurar globalmente Git
-echo_message "Configuración de Git global"
-$git_command config --global --replace-all credential.helper "$credential_helper"
-$git_command config --global credential.credentialStore "$credential_store"
-accounts=$(jq -r '.accounts | keys[]' "$git_config_repos_json_file")
-for account in $accounts; do
-    account_url=$(jq -r ".accounts[\"$account\"].url" "$git_config_repos_json_file")
-    account_username=$(jq -r ".accounts[\"$account\"].username" "$git_config_repos_json_file")
-    account_provider=$(jq -r ".accounts[\"$account\"].provider" "$git_config_repos_json_file")
-    account_useHttpPath=$(jq -r ".accounts[\"$account\"].useHttpPath" "$git_config_repos_json_file")
-    # Obtengo "gratis", la URL las credenciales desde account_url
-    account_credential_url=$(echo "$account_url" | sed -E 's|(https://[^/]+).*|\1|')
-    # Configurar las credenciales globales para la cuenta
-    $git_command config --global credential."$account_credential_url".provider "$account_provider"
-    $git_command config --global credential."$account_credential_url".useHttpPath "$account_useHttpPath"
-done
-echo_status ok
+# DIRECTORIO SSH
+# Crear el directorio global de Git
+if [ "$credential_ssh" == true ]; then
+    echo_message "Directorio SSH: $ssh_folder"
+    mkdir -p "$ssh_folder" &>/dev/null
+    if [ $? -ne 0 ]; then
+        echo_status error
+        echo "ERROR: No se ha podido crear $ssh_folder."
+        exit 1
+    fi
+    echo_status ok
+fi
 
-# CREDENCIALES
-# Iterar sobre las cuentas para los CREDENCIALES
-# En esta seccion se configuran las credenciales en el almacen de credenciales, mediante
-# el proceso de ir a la URL de la cuenta y autenticarse con el navegador
-accounts=$(jq -r '.accounts | keys[]' "$git_config_repos_json_file")
-for account in $accounts; do
-    account_url=$(jq -r ".accounts[\"$account\"].url" "$git_config_repos_json_file")
-    account_username=$(jq -r ".accounts[\"$account\"].username" "$git_config_repos_json_file")
-    # Obtengo "gratis", la URL las credenciales desde account_url
-    account_credential_url=$(echo "$account_url" | sed -E 's|(https://[^/]+).*|\1|')
+# CONFIGURACIÓN GLOBAL de GCM
+# --
+# Para HTTPS + Git Credential Manager
+if [ "$credential_gcm" == "true" ]; then
 
-    # Avisar al usuario para que prepare el navegador para que se autentique
-    echo_message "Comprobando credenciales de $account > $account_username"
-    check_credential_in_store "$account_credential_url" "$account_username"
-    if [ $? -eq 0 ]; then
-        echo_status ok
-    else
-        echo_status warning
-        read -p "Preapara tu navegador para autenticar a $account > $account_username - (Enter/Ctrl-C)." confirm
-        credenciales="/tmp/tmp-credenciales"
-        (
-            echo url="$account_credential_url"
-            echo "username=$account_username"
-            echo
-        ) | $git_command credential fill >$credenciales 2>/dev/null
-        if [ -f $credenciales ] && [ ! -s $credenciales ]; then
-            # No deberia entrar por aquí
-            echo "    Ya se habián configurado las credenciales en el pasado"
-            echo "$account/$username ya tiene los credenciales configurados en el almacen"
+    echo_message "Configuración de Git global"
+    $git_command config --global --replace-all credential.helper "$credential_helper"
+    $git_command config --global credential.credentialStore "$credential_store"
+    accounts=$(jq -r '.accounts | keys[]' "$git_config_repos_json_file")
+    for account in $accounts; do
+        account_url=$(jq -r ".accounts[\"$account\"].url" "$git_config_repos_json_file")
+        account_username=$(jq -r ".accounts[\"$account\"].username" "$git_config_repos_json_file")
+        account_gcm_provider=$(jq -r ".accounts[\"$account\"].gcm_provider" "$git_config_repos_json_file")
+        account_gcm_useHttpPath=$(jq -r ".accounts[\"$account\"].gcm_useHttpPath" "$git_config_repos_json_file")
+        # Obtengo "gratis", la URL las credenciales desde account_url
+        account_credential_url=$(echo "$account_url" | sed -E 's|(https://[^/]+).*|\1|')
+        # Configurar las credenciales globales para la cuenta
+        $git_command config --global credential."$account_credential_url".provider "$account_gcm_provider"
+        $git_command config --global credential."$account_credential_url".useHttpPath "$account_gcm_useHttpPath"
+    done
+    echo_status ok
+
+    # CREDENCIALES
+    # Iterar sobre las cuentas para los CREDENCIALES de GCM
+    # En esta seccion se configuran las credenciales en el almacen de credenciales, mediante
+    # el proceso de ir a la URL de la cuenta y autenticarse con el navegador
+    accounts=$(jq -r '.accounts | keys[]' "$git_config_repos_json_file")
+    for account in $accounts; do
+        account_url=$(jq -r ".accounts[\"$account\"].url" "$git_config_repos_json_file")
+        account_username=$(jq -r ".accounts[\"$account\"].username" "$git_config_repos_json_file")
+        # Obtengo "gratis", la URL las credenciales desde account_url
+        account_credential_url=$(echo "$account_url" | sed -E 's|(https://[^/]+).*|\1|')
+
+        # Avisar al usuario para que prepare el navegador para que se autentique
+        echo_message "Comprobando credenciales de $account > $account_username"
+        check_credential_in_store "$account_credential_url" "$account_username"
+        if [ $? -eq 0 ]; then
+            echo_status ok
         else
-            echo_message "    Añado las credenciales al almacen de credenciales"
-            cat $credenciales | $git_command credential approve
+            echo_status warning
+            read -p "Preapara tu navegador para autenticar a $account > $account_username - (Enter/Ctrl-C)." confirm
+            credenciales="/tmp/tmp-credenciales"
+            (
+                echo url="$account_credential_url"
+                echo "username=$account_username"
+                echo
+            ) | $git_command credential fill >$credenciales 2>/dev/null
+            if [ -f $credenciales ] && [ ! -s $credenciales ]; then
+                # No deberia entrar por aquí
+                echo "    Ya se habián configurado las credenciales en el pasado"
+                echo "$account/$username ya tiene los credenciales configurados en el almacen"
+            else
+                echo_message "    Añado las credenciales al almacen de credenciales"
+                cat $credenciales | $git_command credential approve
+                echo_status ok
+            fi
+        fi
+    done
+fi
+
+# CONFIGURACIÓN GLOBAL de SSH
+# --
+# Para SSH configuro las Keys
+if [ "$credential_ssh" == true ]; then
+
+    ssh_config_file="$ssh_folder/config"
+    git_config_comment="# Configuración para git-config-repos.sh"
+    git_include_line="Include $ssh_folder/git-config-repos"
+    ssh_config_file_git_config_repos="$ssh_folder/git-config-repos"
+
+    # Comprueba si las líneas ya existen
+    echo_message "Configuración Hosts SSH en $ssh_config_file"
+    if ! grep -qF "$git_config_comment" "$ssh_config_file" && ! grep -qF "$git_include_line" "$ssh_config_file"; then
+        # Añade las líneas al principio del archivo
+        {
+            cat "$ssh_config_file"
+            echo ""
+            echo "$git_config_comment"
+            echo "$git_include_line"
+            echo ""
+        } > "$ssh_config_file.tmp" && mv "$ssh_config_file.tmp" "$ssh_config_file"
+        echo_status created
+    else
+        echo_status ok
+    fi
+
+    # Verificar y/o crear las KEYS por cuenta, añañdir al ssh-agent y configurar el archivo de configuración
+    # de SSH para que use las claves SSH correctas
+    echo "# Configuración para git-config-repos.sh" > "$ssh_config_file_git_config_repos"
+    accounts=$(jq -r '.accounts | keys[]' "$git_config_repos_json_file")
+    for account in $accounts; do
+        echo_message "Claves SSH para $account"
+
+        # Extraer los valores de la cuenta desde el archivo JSON
+        ssh_host=$(jq -r ".accounts[\"$account\"].ssh_host" "$git_config_repos_json_file")
+        if [ "$ssh_host" == "" ] || [ "$ssh_host" == "null" ]; then
+            echo "Error: La cuenta $account no tiene definida el prefijo del nombre de clave SSH (ssh_host)."
+            echo_status error
+            exit 1
+        fi
+        ssh_hostname=$(jq -r ".accounts[\"$account\"].ssh_hostname" "$git_config_repos_json_file")
+        if [ "$ssh_hostname" == "" ] || [ "$ssh_hostname" == "null" ]; then
+            echo "Error: La cuenta $account no tiene definida el Hostname SSH (ssh_hostname)."
+            echo_status error
+            exit 1
+        fi
+        account_ssh_type=$(jq -r ".accounts[\"$account\"].ssh_type" "$git_config_repos_json_file")
+        if [ "$account_ssh_type" == "" ] || [ "$account_ssh_type" == "null" ]; then
+            echo_status error
+            echo "Error: La cuenta $account no tiene definido el tipo de clave SSH (ssh_type)."
+            exit 1
+        fi
+        account_ssh_key="$ssh_folder/$ssh_host-sshkey"
+
+        # Comprobar si la clave SSH existe, si no, crearla
+        if [ ! -f "$account_ssh_key" ] || [ ! -f "$account_ssh_key.pub" ]; then
+            # Intentar generar la clave SSH y capturar errores
+            account_url=$(jq -r ".accounts[\"$account\"].url" "$git_config_repos_json_file")
+            account_username=$(jq -r ".accounts[\"$account\"].username" "$git_config_repos_json_file")
+            account_ssh_comment="$(whoami)@$(hostname) $account_username $account_url"
+            if $(echo "y" | ssh-keygen -q -t "$account_ssh_type" -f "$account_ssh_key" -C "$account_ssh_comment" -N "" &>/dev/null); then
+                echo_status created
+            else
+                echo_status error
+                echo "Error creando la clave SSH para $account" >&2
+                exit 1
+            fi
+        else
             echo_status ok
         fi
-    fi
-done
+
+        # Añadir el host al fichero de configuración SSH git-config-repos, ejemplo
+        echo_message "Configuración Host SSH para $account"
+        echo "Host $ssh_host" >>"$ssh_config_file_git_config_repos"
+        echo "    HostName $ssh_hostname" >>"$ssh_config_file_git_config_repos"
+        echo "    User git" >>"$ssh_config_file_git_config_repos"
+        echo "    IdentityFile $account_ssh_key" >>"$ssh_config_file_git_config_repos"
+        echo "    IdentitiesOnly yes" >>"$ssh_config_file_git_config_repos"
+        echo_status ok
+    done
+
+    # Añadirlas al ssh-agent
+    ssh-add -D &>/dev/null
+    for account in $accounts; do
+        ssh_host=$(jq -r ".accounts[\"$account\"].ssh_host" "$git_config_repos_json_file")
+        account_ssh_key="$ssh_folder/$ssh_key-sshkey"
+        echo_message "Añadiendo clave SSH a ssh-agent para $account"
+        ssh-add "$account_ssh_key" &>/dev/null
+        echo_status ok
+    done
+fi
 
 # REPOSITORIOS
 # Iterar sobre las cuentas para los REPOSITORIOS
@@ -429,14 +569,27 @@ for account in $accounts; do
     account_url=$(jq -r ".accounts[\"$account\"].url" "$git_config_repos_json_file")
     account_username=$(jq -r ".accounts[\"$account\"].username" "$git_config_repos_json_file")
     account_folder=$(jq -r ".accounts[\"$account\"].folder" "$git_config_repos_json_file")
-    account_provider=$(jq -r ".accounts[\"$account\"].provider" "$git_config_repos_json_file")
-    account_useHttpPath=$(jq -r ".accounts[\"$account\"].useHttpPath" "$git_config_repos_json_file")
     account_user_name=$(jq -r ".accounts[\"$account\"].name" "$git_config_repos_json_file")
     account_user_email=$(jq -r ".accounts[\"$account\"].email" "$git_config_repos_json_file")
 
-    # Obtengo valores "gratis", la URL de clonación y la de las credenciales
-    account_clone_url=$(echo "$account_url" | sed -E "s|https://(.*)|https://$account_username@\1|")
-    account_credential_url=$(echo "$account_url" | sed -E 's|(https://[^/]+).*|\1|')
+    # Preparo variables si la cuenta tiene credenciales vía SSH
+    if [ "$credential_ssh" == true ]; then
+        ssh_host=$(jq -r ".accounts[\"$account\"].ssh_host" "$git_config_repos_json_file")
+        account_ssh_type=$(jq -r ".accounts[\"$account\"].ssh_type" "$git_config_repos_json_file")
+        account_ssh_key="$ssh_folder/$ssh_host-sshkey"
+        # Extraigo el nombre de la cuenta de la URL, por ejemplo, para
+        # una url del tipo https://github.com/usuario, extraigo "usuario"
+        git_account_user=$(echo "$account_url" | sed -E 's|.*/([^/]+)$|\1|')
+        # Reconstruyo la URL de clonación usando el ssh_host y el usuario
+        account_clone_url="$ssh_host:$git_account_user"
+        remote_origin_url=$account_clone_url
+    elif [ "$credential_gcm" == true ]; then
+        # Preparo variables si la cuenta tiene credenciales vía GCM
+        # Obtengo valores "gratis", la URL de clonación y la de las credenciales
+        account_clone_url=$(echo "$account_url" | sed -E "s|https://(.*)|https://$account_username@\1|")
+        account_credential_url=$(echo "$account_url" | sed -E 's|(https://[^/]+).*|\1|')
+        remote_origin_url=$account_url
+    fi
 
     # Crear el directorio para la cuenta
     echo_message "  $account_folder"
@@ -451,7 +604,8 @@ for account in $accounts; do
     # Iterar sobre los repositorios de la cuenta
     repos=$(jq -r ".accounts[\"$account\"].repos | keys[]" "$git_config_repos_json_file")
     for repo in $repos; do
-        # Verifico si tengo el nombre y el email del usuario a nivel de repositorio
+
+        # Si tengo nombre y email del usuario a nivel de repositorio, los pillo
         repo_name=$(jq -r ".accounts[\"$account\"].repos[\"$repo\"].name" "$git_config_repos_json_file")
         if [ "$repo_name" != "" ] && [ "$repo_name" != "null" ]; then
             account_user_name=$repo_name
@@ -460,6 +614,9 @@ for account in $accounts; do
         if [ "$repo_email" != "" ] && [ "$repo_email" != "null" ]; then
             account_user_email=$repo_email
         fi
+
+        # Averiguo el tipo de credencial para el repositorio
+        repo_credential_type=$(jq -r ".accounts[\"$account\"].repos[\"$repo\"].credential_type" "$git_config_repos_json_file")
 
         # Construyo la ruta del repositorio
         repo_path="$global_folder/$account_folder/$repo"
@@ -475,6 +632,7 @@ for account in $accounts; do
             else
                 destination_directory=$repo_path # En Mac y Linux
             fi
+
             # Clonar el repo
             $git_command clone "$account_clone_url/$repo.git" "$destination_directory" &>/dev/null
             if [ $? -eq 0 ]; then
@@ -483,22 +641,25 @@ for account in $accounts; do
                 echo_status error
                 continue
             fi
+
         else
             echo_message "   - $repo_path"
             echo_status ok
         fi
 
-        # Configurar el repositorio local
+        # Configurar el repositorio local (.git/config)
         cd "$repo_path" || continue
-        $git_command remote set-url origin "$account_url/$repo.git"
+        $git_command remote set-url origin "$remote_origin_url/$repo.git"
+        $git_command remote set-url --push origin "$remote_origin_url/$repo.git"
         if [ "$account_user_name" != "" ] && [ "$account_user_name" != "null" ]; then
             $git_command config user.name "$account_user_name"
         fi
         if [ "$account_user_email" != "" ] && [ "$account_user_email" != "null" ]; then
             $git_command config user.email "$account_user_email"
         fi
-        $git_command remote set-url --push origin "$account_url/$repo.git"
-        $git_command config credential."$account_credential_url".username "$account_username"
+        if  [ "$credential_gcm" == true ]; then
+            $git_command config credential."$account_credential_url".username "$account_username"
+        fi
 
     done
 done

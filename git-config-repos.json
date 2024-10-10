@@ -2,22 +2,26 @@
 //
 // Ejemplo de fchero de configuración para git-config-repos.sh
 //
-// ELIMINA TODOS LOS COMENTARIOS ANTES DE USAR
+// ELIMINA TODOS LOS COMENTARIOS ANTES DE USAR ESTE FICHERO
 //
 {
     // SECCIÓN GLOBAL
     //
     // global.folder es el directorio a partir del cual se trabaja
     //
-    // El resto son parámetros para $HOME/.gitconfig
-    //
-    // git config --global credential.helper <global.credential.helper>
-    // git config --global credential.credentialStore <global.credential.credentialStore>
+    // Si se usan credenciales de tipo Git Credential Manager:
+    // git config --global credential_gcm.helper <global.credential_gcm.helper>
+    // git config --global credential_gcm.credentialStore <global.credential_gcm.credentialStore>
     //                     windows: wincredman, osx: keychain, linux: gpg
     //
     "global": {
         "folder": "/Users/luis/00.git",
-        "credential": {
+        "credential_ssh": {
+            "enabled": "true",
+            "ssh_folder": "/home/luis/.ssh"
+        },
+        "credential_gcm": {
+            "enabled": "false",
             "helper": "manager",
             "credentialStore": "keychain"
         }
@@ -36,49 +40,62 @@
         // Cuenta con GitHub personal
         "GitHub-LuisPalacios": {
             "url": "https://github.com/LuisPalacios",
-            "clone_url": "https://LuisPalacios@github.com/LuisPalacios",
-            "credential_url": "https://github.com",
             "username": "LuisPalacios",
             "folder": "02.github-luispa",
-            "provider": "github",
-            "useHttpPath": "false",
             "name": "Luis Palacios",
             "email": "luis.palacios.derqui@gmail.com",
+            "gcm_provider": "github",
+            "gcm_useHttpPath": "false",
+            "ssh_host": "gh-LuisPalacios",
+            "ssh_hostname": "github.com",
+            "ssh_type": "ed25519",
             "repos": {
-                "LuisPalacios.github.io": {},
+                "LuisPalacios.github.io": {
+                    "credential_type": "gcm"
+                },
                 "git-repo-eol-analyzer": {
                     "name": "LuisPa",
-                    "email": "another.email@gmail.com"
+                    "email": "another.email@gmail.com",
+                    "credential_type": "gcm"
+                },
+                "OtroRepo": {
+                    "credential_type": "ssh"
                 }
             }
         },
         // Ejemplo de cuenta de empresa en GitHub, con repositorios de la empresa Renueva
         "GitHub-LuispaRenueva": {
             "url": "https://github.com/Renueva",
-            "clone_url": "https://LuispaRenueva@github.com/Renueva",
-            "credential_url": "https://github.com",
             "username": "LuispaRenueva",
             "folder": "03.github-renueva",
-            "provider": "github",
-            "useHttpPath": "false",
             "name": "LuispaRenueva",
             "email": "luispa@renueva.com",
+            "gcm_provider": "github",
+            "gcm_useHttpPath": "false",
+            "ssh_host": "gh-LuisPalacios",
+            "ssh_hostname": "github.com",
+            "ssh_type": "ed25519",
             "repos": {
-                "renueva.consulting": {},
-                "renueva.consulting.lib": {}
+                "renueva.consulting": {
+                    "credential_type": "gcm"
+                },
+                "renueva.consulting.lib": {
+                    "credential_type": "gcm"
+                }
             }
         },
         // Cuenta que puedes tener con otro usuario personal en GitHub
         "GitHub-OtroUsuario": {
             "url": "https://github.com/OtroUsuario",
-            "clone_url": "https://OtroUsuario@github.com/OtroUsuario",
-            "credential_url": "https://github.com",
             "username": "OtroUsuario",
             "folder": "04.github-otrousuario",
             "provider": "github",
             "useHttpPath": "false",
+            "gcm_provider": "github",
+            "gcm_useHttpPath": "false",
             "repos": {
                 "mi-super-repo": {
+                    "credential_type": "gcm",
                     "name": "Otro Usuario",
                     "email": "otrousuario@gmail.com"
                 }
@@ -86,18 +103,17 @@
         },
         // Cuenta con Gitea server en casa.
         "Gitea-Luis": {
-            "url": "https://git.home.org/palas",
-            "clone_url": "https://luis@git.home.org/palas",
-            "credential_url": "https://git.home.org",
+            "url": "https://git.parchis.org/palas",
             "username": "luis",
-            "folder": "01.gitea-luis",
-            "subfolder": "palas",
-            "provider": "generic",
-            "useHttpPath": "false",
+            "folder": "01.gitea-palas",
             "name": "Luis Palacios",
             "email": "luis.home@gmail.com",
+            "gcm_provider": "generic",
+            "gcm_useHttpPath": "false",
             "repos": {
-                "cumples": {}
+                "cumples": {
+                    "credential_type": "gcm"
+                }
             }
         }
     }
