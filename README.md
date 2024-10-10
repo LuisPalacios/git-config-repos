@@ -22,3 +22,9 @@ El fichero JSON tiene dos claves principales: "global" y "accounts".
 - La clave "accounts" incluye claves para diferentes cuentas en distintos proveedores Git y dentro de dichas cuentas incluye a su vez repositorios.
 
 Este script se apoya en Git Credential Manager y/o SSH Multicuenta. Está probado en Linux, MacOS y Windows con WSL2
+
+## `git-status-pull.sh`
+
+Este script verifica el estado de múltiples repositorios Git a partir del directorio actual (desde donde lo ejecutes). Su objetivo es informar al usuario sobre qué repositorios necesitan un pull para estar sincronizados con su upstream.
+
+Si se proporciona el argumento Pull, el script puede hacer pull automáticamente. Además es capaz de proporcionar información detallada sobre cada repositorio, cuando no se puede hacer pull automáticamente, informando de la razón por la que el repositorio no está limpio y necesita ser revisado. Soporta el modo verbose (-v) para dar dicha informacion más detallada
