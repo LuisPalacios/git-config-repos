@@ -1,4 +1,4 @@
-# Configurador de repositorios Git
+# Herramientas para repositorios Git
 
 Scripts de apoyo para trabajar con Git en entorno de múltiples cuentas con uno o más proveedores Git (GitHub, GitLab, Gitea).
 
