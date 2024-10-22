@@ -12,7 +12,7 @@
     // Si se usan credenciales de tipo Git Credential Manager:
     // git config --global credential_gcm.helper <global.credential_gcm.helper>
     // git config --global credential_gcm.credentialStore <global.credential_gcm.credentialStore>
-    //                     windows: wincredman, osx: keychain, linux: gpg
+    //                     windows: wincredman, osx: keychain, linux: secretservice
     //
     "global": {
         "folder": "/Users/luis/00.git",
