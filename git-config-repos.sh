@@ -14,15 +14,15 @@
 # Descripción:
 #
 # Este script permite configurar repositorios Git de forma automática en tu equipo,
-# soportando múltiples cuentas con uno o más proveedores Git (GitHub, GitLab, Gitea),
+# soportando múltiples cuentas con uno o más proveedores Git (GitHub, GitLab, Gitea, ...),
 # y también definiendo con qué método quieres autenticarte en cada cuenta y repositorio.
 #
 # Soporta dos métodos. El primero es HTTPS + Git Credential Manager, muy útil y recomendado
-# en entornos de desktop. El segundo es SSH multicuenta, que normalmente uso en equipos
-# “headless”, servidores a los que conecto en remoto vía (CLI o VSCode remote).
+# en entornos de desktop. El segundo es SSH multicuenta, óptimo para entornos
+# “headless”, servidores a los que nos conectamos en remoto vía (CLI o VSCode remote).
 #
-# El script lee un archivo JSON de configuración, que define los parámetros globales
-# y específicos de cada cuenta y repositorio, y realiza las siguientes acciones:
+# El script lee un archivo JSON de configuración, que define parámetros globales
+# y los específicos de cada cuenta y repositorio:
 #
 #  - Configura Git globalmente según los parámetros definidos en el archivo JSON.
 #  - Clona repositorios si no existen en el sistema local.
@@ -35,13 +35,13 @@
 #
 # Requisitos:
 #
-# - Git Credential Manager instalado en Linux, MacOS o Windows (se instala en Windows,
-#   no en WSL2)
-# - Cliente de SSH instalado y configurado para autenticación SSH.
+# - Git Credential Manager en Linux, MacOS o Windows (se instala en Windows, no en WSL2)
+# - Cliente SSH instalado y configurado para autenticación SSH.
 # - jq: Es necesario tener instalado jq para parsear el archivo JSON. En Windows este
 #   comando debe estar instalado dentro de WSL2
 # - Acceso de escritura a los directorios donde se clonarán los repositorios. En Windows,
-#   se usará el comando git.exe para que la ejecución sea a nivel Windows
+#   aunque el script se ejecuta en WSL, usará git.exe para que su ejecución sea desde Windows
+#   y no desde WSL2, para evitar el problema de lentitud de Git bajo WSL2.
 # - Acceso a Internet para clonar los repositorios.
 # - Permisos para configurar Git globalmente en el sistema.
 #
@@ -55,7 +55,7 @@
 #
 # ----------------------------------------------------------------------------------------
 
-# Trap ctrl-c and call ctrl_c()
+# Capturo Ctrl-C y hago que llame al a función ctrl_c()
 trap ctrl_c INT
 
 # ----------------------------------------------------------------------------------------
@@ -64,6 +64,7 @@ trap ctrl_c INT
 credential_ssh="false"
 credential_gcm="true"
 
+# Averiguar si estamos en WSL2
 IS_WSL2=false
 if grep -qEi "(Microsoft|WSL)" /proc/version &>/dev/null; then
     IS_WSL2=true
@@ -71,30 +72,31 @@ if grep -qEi "(Microsoft|WSL)" /proc/version &>/dev/null; then
     # directorio windows. Obtengo la ruta USERPROFILE de Windows y elimino
     # el retorno de carro (\r). Nota: Necesita instalar wslu (sudo apt install wslu)
     USERPROFILE=$(wslpath "$(cmd.exe /c echo %USERPROFILE% 2>/dev/null | tr -d '\r')")
+    # Cambio al directorio típico del usuario C:\Users\<usuario>
     cd $USERPROFILE
 fi
 
 # ----------------------------------------------------------------------------------------
-# Pretty Messaging Setup
+# Mostrar mensajes bonitos
 # ----------------------------------------------------------------------------------------
 
-# Colors for status messages
+# Colores para los menasjes de estado
 COLOR_GREEN=$(tput setaf 2)
 COLOR_YELLOW=$(tput setaf 3)
 COLOR_RED=$(tput setaf 1)
 
-# Terminal width
+# Ancho de la terminal
 width=$(tput cols)
 message_len=0
 
-# Function to print a message
+# Función para imprimir un mensaje
 echo_message() {
     local message=$1
     message_len=${#message}
     printf "%s " "$message"
 }
 
-# Function to print a status message (OK, WARNING, ERROR) right-justified
+# Función para imprimir un mensaje de estado (OK, WARNING, ERROR) alineado a la derecha
 echo_status() {
     local status=$1
     local status_msg
@@ -132,10 +134,10 @@ echo_status() {
 }
 
 # ----------------------------------------------------------------------------------------
-# Utility Functions
+# Funciones de utilidad
 # ----------------------------------------------------------------------------------------
 
-# Función de controlador de señal para manejar CTRL-C
+# Esto se ejecuta cuando pulsan CTRL-C
 function ctrl_c() {
     echo "** Abortado por CTRL-C"
     exit
@@ -615,11 +617,26 @@ for account in $accounts; do
             account_user_email=$repo_email
         fi
 
+
         # Averiguo el tipo de credencial para el repositorio
         repo_credential_type=$(jq -r ".accounts[\"$account\"].repos[\"$repo\"].credential_type" "$git_config_repos_json_file")
 
         # Construyo la ruta del repositorio
-        repo_path="$global_folder/$account_folder/$repo"
+        # Compruebo si este repo tiene la clave "folder" a su nivel, eso puede significar
+        # que el usuario quiere que se clone sobre un nombre de folder distinto al
+        # nombre del repositorio.
+        repo_folder=$(jq -r ".accounts[\"$account\"].repos[\"$repo\"].folder" "$git_config_repos_json_file")
+        if [ "$repo_folder" != "" ] && [ "$repo_folder" != "null" ]; then
+            # Si $repo_folder empieza por /, es una ruta absoluta, por lo que la pongo
+            # como tal, si no, la pongo como relativa al directorio de la cuenta
+            if [ "${repo_folder:0:1}" == "/" ]; then
+                repo_path="$repo_folder"
+            else
+                repo_path="$global_folder/$account_folder/$repo_folder"
+            fi
+        else
+            repo_path="$global_folder/$account_folder/$repo"
+        fi
 
         # Si el repositorio no existe, clonarlo
         if [ ! -d "$repo_path" ]; then

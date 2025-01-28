@@ -15,7 +15,7 @@
     //                     windows: wincredman, osx: keychain, linux: secretservice
     //
     "global": {
-        "folder": "/Users/luis/00.git",
+        "folder": "/home/luis/00.git",
         "credential_ssh": {
             "enabled": "true",
             "ssh_folder": "/home/luis/.ssh"
@@ -59,6 +59,10 @@
                     "credential_type": "gcm"
                 },
                 "OtroRepo": {
+                    // Si quiero que se clone en un path y nombre de directorio
+                    // distinto al nombre del repositorio
+                    "folder": "/home/luis/en/otro/directorio/con-otro-nombre",
+                    // Si quiero que se clone con credenciales ssh
                     "credential_type": "ssh"
                 }
             }
