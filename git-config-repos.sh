@@ -484,18 +484,18 @@ if [ "$credential_ssh" == true ]; then
     if ! grep -qF "$git_config_comment" "$ssh_config_file" && ! grep -qF "$git_include_line" "$ssh_config_file"; then
         # Añade las líneas al principio del archivo
         {
-            cat "$ssh_config_file"
             echo ""
             echo "$git_config_comment"
             echo "$git_include_line"
             echo ""
+            cat "$ssh_config_file"
         } > "$ssh_config_file.tmp" && mv "$ssh_config_file.tmp" "$ssh_config_file"
         echo_status created
     else
         echo_status ok
     fi
 
-    # Verificar y/o crear las KEYS por cuenta, añañdir al ssh-agent y configurar el archivo de configuración
+    # Verificar y/o crear las KEYS por cuenta, añadir al ssh-agent y configurar el archivo de configuración
     # de SSH para que use las claves SSH correctas
     echo "# Configuración para git-config-repos.sh" > "$ssh_config_file_git_config_repos"
     accounts=$(jq -r '.accounts | keys[]' "$git_config_repos_json_file")
@@ -616,7 +616,6 @@ for account in $accounts; do
         if [ "$repo_email" != "" ] && [ "$repo_email" != "null" ]; then
             account_user_email=$repo_email
         fi
-
 
         # Averiguo el tipo de credencial para el repositorio
         repo_credential_type=$(jq -r ".accounts[\"$account\"].repos[\"$repo\"].credential_type" "$git_config_repos_json_file")
